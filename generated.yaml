@@ -1,0 +1,175 @@
+Description: 'AWS CloudFormation Template to create needed resources for static site
+  hosting using s3, cloudfront and route53.  It assumes that you already  have a Hosted
+  Zone registered with Amazon Route 53. '
+Mappings:
+  RegionMap:
+    ap-northeast-1:
+      hostedzoneID: Z2M4EHUR26P7ZW
+      websiteendpoint: s3-website-ap-northeast-1.amazonaws.com
+    ap-southeast-1:
+      hostedzoneID: Z3O0J2DXBE1FTB
+      websiteendpoint: s3-website-ap-southeast-1.amazonaws.com
+    ap-southeast-2:
+      hostedzoneID: Z1WCIGYICN2BYD
+      websiteendpoint: s3-website-ap-southeast-2.amazonaws.com
+    cloudfront:
+      hostedzoneID: Z2FDTNDATAQYW2
+    eu-west-1:
+      hostedzoneID: Z1BKCTXD74EZPE
+      websiteendpoint: s3-website-eu-west-1.amazonaws.com
+    sa-east-1:
+      hostedzoneID: Z31GFT0UA1I2HV
+      websiteendpoint: s3-website-sa-east-1.amazonaws.com
+    us-east-1:
+      hostedzoneID: Z3AQBSTGFYJSTF
+      websiteendpoint: s3-website-us-east-1.amazonaws.com
+    us-west-1:
+      hostedzoneID: Z2F56UZL2M1ACD
+      websiteendpoint: s3-website-us-west-1.amazonaws.com
+    us-west-2:
+      hostedzoneID: Z3BJ6K6RIION7M
+      websiteendpoint: s3-website-us-west-2.amazonaws.com
+Outputs:
+  CloudfrontDomainName:
+    Description: Cloudfront domain name
+    Value: !GetAtt 'StaticSiteBucketDistribution.DomainName'
+  S3WebsiteURL:
+    Description: S3 Website URL
+    Value: !GetAtt 'wwwStaticSiteBucket.WebsiteURL'
+Parameters:
+  HostedZoneName:
+    Description: The DNS name of an existing Amazon Route 53 hosted zone
+    Type: String
+Resources:
+  StaticSiteBucket:
+    Properties:
+      AccessControl: PublicRead
+      BucketName: !Ref 'HostedZoneName'
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - '*'
+            AllowedMethods:
+              - GET
+            AllowedOrigins:
+              - '*'
+            ExposedHeaders:
+              - Date
+            MaxAge: 3600
+      WebsiteConfiguration:
+        ErrorDocument: error.html
+        IndexDocument: index.html
+    Type: AWS::S3::Bucket
+  StaticSiteBucketDistribution:
+    DependsOn:
+      - StaticSiteBucket
+      - wwwStaticSiteBucket
+    Properties:
+      DistributionConfig:
+        Aliases:
+          - !Ref 'HostedZoneName'
+        DefaultCacheBehavior:
+          ForwardedValues:
+            QueryString: 'false'
+          TargetOriginId: staticSiteBucketOrigin
+          ViewerProtocolPolicy: allow-all
+        DefaultRootObject: index.html
+        Enabled: 'true'
+        Origins:
+          - CustomOriginConfig:
+              OriginProtocolPolicy: http-only
+            DomainName: junit5.de.s3-website-us-east-1.amazonaws.com
+            Id: staticSiteBucketOrigin
+        PriceClass: PriceClass_100
+    Type: AWS::CloudFront::Distribution
+  StaticSiteBucketPolicy:
+    Properties:
+      Bucket: !Ref 'StaticSiteBucket'
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject
+            Effect: Allow
+            Principal: '*'
+            Resource: !Join
+              - ''
+              - - 'arn:aws:s3:::'
+                - !Ref 'StaticSiteBucket'
+                - /*
+    Type: AWS::S3::BucketPolicy
+  StaticSiteDNSRecord:
+    Properties:
+      Comment: Records for the root of the hosted zone
+      HostedZoneName: !Join
+        - ''
+        - - !Ref 'HostedZoneName'
+          - .
+      RecordSets:
+        - AliasTarget:
+            DNSName: !Join
+              - ''
+              - - !GetAtt 'StaticSiteBucketDistribution.DomainName'
+                - .
+            HostedZoneId: !FindInMap
+              - RegionMap
+              - cloudfront
+              - hostedzoneID
+          Name: !Join
+            - ''
+            - - !Ref 'HostedZoneName'
+              - .
+          Type: A
+        - AliasTarget:
+            DNSName: !FindInMap
+              - RegionMap
+              - !Ref 'AWS::Region'
+              - websiteendpoint
+            HostedZoneId: !FindInMap
+              - RegionMap
+              - !Ref 'AWS::Region'
+              - hostedzoneID
+          Name: !Join
+            - ''
+            - - www.
+              - !Ref 'HostedZoneName'
+              - .
+          Type: A
+    Type: AWS::Route53::RecordSetGroup
+  wwwStaticSiteBucket:
+    Properties:
+      AccessControl: PublicRead
+      BucketName: !Join
+        - ''
+        - - www.
+          - !Ref 'HostedZoneName'
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - '*'
+            AllowedMethods:
+              - GET
+            AllowedOrigins:
+              - '*'
+            ExposedHeaders:
+              - Date
+            MaxAge: 3600
+      WebsiteConfiguration:
+        RedirectAllRequestsTo:
+          HostName: !Ref 'HostedZoneName'
+          Protocol: http
+    Type: AWS::S3::Bucket
+  wwwStaticSiteBucketPolicy:
+    Properties:
+      Bucket: !Ref 'wwwStaticSiteBucket'
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject
+            Effect: Allow
+            Principal: '*'
+            Resource: !Join
+              - ''
+              - - 'arn:aws:s3:::'
+                - !Ref 'wwwStaticSiteBucket'
+                - /*
+    Type: AWS::S3::BucketPolicy

@@ -54,6 +54,7 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description='Creates or updates a Cloudformation stack')
     parser.add_argument('-c', '--create', action='store_true')
+    parser.add_argument('-u', '--update', action='store_true')
     return parser.parse_args()
 
 
@@ -62,11 +63,12 @@ def main(args=None):
     config = get_deploy_config()
     params = config['params'].items()
 
-    # in case create flag is active do create, update is default action
-    if args.create:
-        return create(config, params)
 
-    update(config, params)
+    # in case create flag is active do create, update is default action
+    if args.update:
+        return update(config, params)
+    return create(config, params)
+
 
 
 if __name__ == "__main__":

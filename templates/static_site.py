@@ -1,6 +1,5 @@
 from troposphere import GetAtt, Join, Output, FindInMap
 from troposphere import Parameter, Ref, Template
-from troposphere.cloudformation import CustomResource
 from troposphere.route53 import RecordSetGroup, RecordSet, AliasTarget
 from troposphere.s3 import BucketPolicy, WebsiteConfiguration
 from troposphere.s3 import Bucket, RedirectAllRequestsTo
@@ -66,12 +65,6 @@ HostedZoneName = t.add_parameter(Parameter(
     "HostedZoneName",
     Description="The DNS name of an existing Amazon Route 53 hosted zone",
     Type="String"
-))
-IndexHtml = t.add_parameter(Parameter(
-    "IndexHtml",
-    Description="index.html url location",
-    Type="String",
-    Default="https://raw.githubusercontent.com/pmcdowell-okta/cloudformation-deploy-html/master/html/index.html"
 ))
 
 # prepare different configuration for www to root and vice versa
@@ -249,15 +242,6 @@ StaticSiteDNSRecord = t.add_resource(RecordSetGroup(
     HostedZoneName=Join("", [Ref(HostedZoneName), "."]),
     Comment="Records for the root of the hosted zone",
     RecordSets=record_sets
-))
-
-#https://stackoverflow.com/questions/52675529/upload-a-file-from-your-code-base-to-s3-as-part-of-cloudformation
-Deploytos3 = t.add_resource(CustomResource(
-    "DeploymentCustomResource",
-    Type="Custom::deploytos3",
-    bucketname=Ref(wwwStaticSiteBucket),
-    url=Ref(IndexHtml),
-    ServiceToken=GetAtt(wwwStaticSiteBucket, "Arn"),
 ))
 
 t.add_output(Output(

@@ -5,7 +5,7 @@ from troposphere.s3 import BucketPolicy, WebsiteConfiguration
 from troposphere.s3 import Bucket, RedirectAllRequestsTo
 from troposphere.s3 import CorsConfiguration, CorsRules
 from troposphere.cloudfront import Distribution, DistributionConfig
-from troposphere.cloudfront import ForwardedValues, CustomOrigin
+from troposphere.cloudfront import ForwardedValues, CustomOriginConfig
 from troposphere.cloudfront import Origin, DefaultCacheBehavior
 import yaml
 
@@ -146,7 +146,7 @@ StaticSiteBucketDistribution = t.add_resource(Distribution(
         Origins=[Origin(
             Id="staticSiteBucketOrigin",
             DomainName=origin_static_url,
-            CustomOriginConfig=CustomOrigin(
+            CustomOriginConfig=CustomOriginConfig(
                 OriginProtocolPolicy="http-only"
             ),
         )],
@@ -258,4 +258,4 @@ t.add_output(Output(
 
 
 def get():
-    return t.to_json()
+    return t.to_yaml()
